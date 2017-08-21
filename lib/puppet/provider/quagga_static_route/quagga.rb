@@ -1,11 +1,7 @@
 Puppet::Type.type(:quagga_static_route).provide :quagga do
   @doc = %q{ Manages static routes using zebra }
 
-  @resource_properties = [
-      :gateway, :interface, :distance,
-  ]
-
-  @resource_template = 'ip route <%= name %> <% if not gateway.nil? %><%= gateway %><% elsif not interface.nil? %><%= interface %><% end %><% unless distance.nil? %> <%= distance %><% end %>'
+  @template = 'ip route <%= prefix %> <%= nexthop %><% unless option.nil? %> <%= option %><% end %><% unless distance.nil? %> <%= distance %><% end %>'
 
   commands :vtysh => 'vtysh'
 
@@ -18,27 +14,23 @@ Puppet::Type.type(:quagga_static_route).provide :quagga do
     config = vtysh('-c', 'show running-config')
     config.split(/\n/).collect do |line|
 
-      if line =~ /\Aip\sroute\s(\d+{1,3}\.\d+{1,3}\.\d+{1,3}\.\d{1,3}\/\d{1,2})\s(\d+{1,3}\.\d+{1,3}\.\d+{1,3}\.\d{1,3}|\w+)\s?(\d{1,3})?\Z/
+      if line =~ /\Aip\sroute\s(\S+)\s(\S+)(?:\s(blackhole|reject))?(?:\s(\d+))?\Z/
 
-        name = $1
-        if $2 =~ /\d+{1,3}\.\d+{1,3}\.\d+{1,3}\.\d{1,3}/
-          gateway_address = $2
-          interface_name  = :absent
-        else
-          gateway_address = :absent
-          interface_name  = $2
-        end
-
-        distance = $3.nil? ? :absent : Integer($3)
+        prefix = $1
+        nexthop = $2
+        option = $3.nil? ? :absent : $3.to_sym
+        distance = $4.nil? ? :absent : Integer($4)
 
         hash = {
-            :name      => name,
-            :ensure    => :present,
-            :gateway   => gateway_address,
-            :interface => interface_name,
-            :distance  => distance,
+            prefix:   prefix,
+            ensure:   :present,
+            nexthop:  nexthop,
+            distance: distance,
+            option:   option,
+            provider: self.name,
         }
 
+        debug 'Instantiated the resource %{hash}' % { hash: hash.inspect }
         providers << new(hash)
 
         found_route = true
@@ -52,26 +44,26 @@ Puppet::Type.type(:quagga_static_route).provide :quagga do
   end
 
   def self.prefetch(resources)
-    providers = instances
-    resources.keys.each do |name|
-      if provider = providers.find{ |provider| provider.name == name }
-        resources[name].provider = provider
+    instances.each do |provider|
+      if resource = resources[provider.name]
+        debug 'Prefetched the resource %{resource}' % { resource: resource.to_hash.inspect }
+        resource.provider = provider
       end
     end
   end
 
   def create
-    template = self.class.instance_variable_get('@resource_template')
-    name = @resource[:name]
+    template = self.class.instance_variable_get('@template')
+    prefix = @resource[:prefix]
 
-    debug 'Creating route to %{name}.' % { :name => @resource[:name] }
+    debug 'Creating the resource %{resource}.' % { resource: @resource.to_hash.inspect }
 
     cmds = []
     cmds << 'configure terminal'
 
-    gateway = @resource[:gateway] unless @resource[:gateway] == :absent
-    interface = @resource[:interface] unless @resource[:interface] == :absent
     distance = @resource[:distance] unless @resource[:distance] == :absent
+    nexthop = @resource[:nexthop] unless @resource[:nexthop] == :absent
+    option = @resource[:option] unless @resource[:option] == :absent
 
     cmds << ERB.new(template).result(binding)
 
@@ -83,19 +75,19 @@ Puppet::Type.type(:quagga_static_route).provide :quagga do
   end
 
   def destroy
-    template = self.class.instance_variable_get('@resource_template')
-    name = @property_hash[:name]
+    template = self.class.instance_variable_get('@template')
+    prefix = @property_hash[:prefix]
 
-    debug 'Destroying the prefix-list %{name}.' % { :name => @property_hash[:name] }
+    debug 'Destroying the resource %{resource}.' % { resource: @property_hash.inspect }
 
     cmds = []
     cmds << 'configure terminal'
 
-    gateway = @property_hash[:gateway] unless @property_hash[:gateway] == :absent
-    interface = @property_hash[:interface] unless @property_hash[:interface] == :absent
     distance = @property_hash[:distance] unless @property_hash[:distance] == :absent
+    nexthop = @property_hash[:nexthop] unless @property_hash[:nexthop] == :absent
+    option = @property_hash[:option] unless @property_hash[:option] == :absent
 
-    cmds << 'no %{command}' % { :command => ERB.new(template).result(binding) }
+    cmds << 'no %{command}' % { command: ERB.new(template).result(binding) }
 
     cmds << 'end'
     cmds << 'write memory'
@@ -108,13 +100,16 @@ Puppet::Type.type(:quagga_static_route).provide :quagga do
     @property_hash[:ensure] == :present
   end
 
-  def flush
-    return unless @property_hash[:ensure] == :present
-
-    name = @property_hash[:name]
-
-    debug 'Flushing the route to %{name}.' % { :name => @property_hash[:name] }
-
+  def distance=(value)
     create
+  end
+
+  def option=(value)
+    destroy
+    create
+  end
+
+  def name
+    "#{prefix} #{nexthop}"
   end
 end

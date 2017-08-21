@@ -185,6 +185,9 @@ quagga::ospf::router:
   abr_type: cisco
   log_adjacency_changes: true
   opaque: false
+  passive_interfaces:
+    - eth0
+    - eth1 1.1.1.1
   redistribute:
     - connected route-map CONNECTED
   rfc1583: false
@@ -199,3 +202,10 @@ quagga::ospf::areas:
     networks:
       - 172.16.1.0/24
       - 192.168.1.0/24
+
+quagga::zebra::routes:
+  192.168.0.0/24:
+    nexthop: 10.0.0.1
+  10.255.255.0/24:
+    nexthop: Null0
+    distance: 250
