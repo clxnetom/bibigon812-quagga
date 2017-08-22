@@ -6,6 +6,7 @@ class quagga::zebra (
   Boolean $service_manage,
   Enum['running', 'stopped'] $service_ensure,
   String $service_opts,
+  Hash $access_lists,
   Hash $routes,
 ) {
   include quagga::zebra::config
@@ -15,6 +16,11 @@ class quagga::zebra (
     $routes.each | $route_title, $route | {
       quagga_static_route { $route_title:
         * => $route
+      }
+    }
+    $access_lists.each | $list_name, $list | {
+      quagga_access_list { $list_name:
+        * => $list
       }
     }
   }
