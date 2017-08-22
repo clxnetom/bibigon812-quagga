@@ -9,6 +9,7 @@
     * [Forwarding](#forwarding)
     * [Interfaces](#interfaces)
     * [Routes](#routes)
+    * [Access lists](#access-lists)
 1. [BGP](#bgp)
     * [BGP Router](#bgp-router)
     * [BGP Address Families](#bgp-address-families)
@@ -112,6 +113,33 @@ quagga::zebra::routes:
     ensure: present
     option: reject
     distance: 200
+```
+
+### Access lists
+
+The number/name is the namevar.
+
+```yaml
+quagga::zebra::access_lists:
+  '1':
+    ensure: present
+    remark: IP standard access list
+    rules:
+      - 'permit host 127.0.0.1'
+      - 'deny any'
+  '100':
+    ensure: present
+    remark: IP extended access list
+    rules:
+      - 'permit ip 192.168.0.0 0.0.0.255 any'
+      - 'permit ip 192.168.1.0 0.0.0.255 host 172.16.0.10'
+      - 'deny ip any any'
+  'zebra':
+    ensure: present
+    remark: IP zebra access-list
+    rules:
+      - 'permit 192.168.10.0/24'
+      - 'deny any'
 ```
 
 ## BGP
