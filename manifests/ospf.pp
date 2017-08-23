@@ -9,6 +9,7 @@ class quagga::ospf (
   Hash $interfaces,
   Hash $router,
   Hash $areas,
+  Hash $distribute_lists,
 ) {
   include quagga::ospf::config
   include quagga::ospf::service
@@ -27,6 +28,12 @@ class quagga::ospf (
     $areas.each |String $area_name, Hash $area| {
       quagga_ospf_area {$area_name:
         * => $area
+      }
+    }
+
+    $distribute_lists.each |String $list_name, Hash $options| {
+      quagga_ospf_distribute_list {$list_name:
+        * => $options
       }
     }
   }

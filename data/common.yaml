@@ -99,3 +99,4 @@ quagga::ospf::interfaces: {}
 quagga::ospf::router:
   router_id: "%{::facts.networking.ip}"
 quagga::ospf::areas: {}
+quagga::ospf::distribute_lists: {}
