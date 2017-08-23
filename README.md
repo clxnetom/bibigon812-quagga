@@ -20,6 +20,7 @@
     * [OSPF Router](#ospf-router)
     * [OSPF Areas](#ospf-areas)
     * [OSPF Interfaces](#ospf-interfaces)
+    * [OSPF Distribute Lists](#ospf-distribute-lists)
 1. [PIM](#pim)
     * [PIM Router](#pim-router)
     * [PIM Interfaces](#pim-interfaces)
@@ -286,6 +287,15 @@ quagga::ospf::interfaces:
     hello_interval: 2
     mtu_ignore: true
     priority: 100
+```
+
+### OSPF Distribute Lists
+
+```yaml
+quagga::ospf::distribute_lists:
+  kernel:
+    ensure: present
+    access_list: word
 ```
 
 ## PIM
